@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
 	bc "github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
@@ -86,8 +86,18 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var pv types.PrivValidator
+	if config.PrivValidatorListenAddr != "" {
+		pv, err = createAndStartPrivValidatorSocketClient(config.PrivValidatorListenAddr, logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Error with private validator socket client")
+		}
+	} else {
+		pv = privval.LoadOrGenFilePV(config.PrivValidatorFile())
+	}
 	return NewNode(config,
-		privval.LoadOrGenFilePV(config.PrivValidatorFile()),
+		pv,
 		nodeKey,
 		proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
 		DefaultGenesisDocProviderFunc(config),
